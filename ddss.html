@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ku">
+<head>
+<meta charset="UTF-8">
+<title>Market POS Professional</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+display:flex;
+background:#f2f2f2;
+}
+
+#menu{
+width:240px;
+background:#111;
+color:white;
+height:100vh;
+padding:10px;
+}
+
+#menu button{
+width:100%;
+padding:10px;
+margin:4px 0;
+border:none;
+background:#333;
+color:white;
+cursor:pointer;
+}
+
+#menu button:hover{
+background:#ff4da6;
+}
+
+#content{
+flex:1;
+padding:20px;
+}
+
+.section{
+display:none;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:10px;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:8px;
+text-align:center;
+}
+
+input{
+padding:7px;
+margin:4px;
+}
+
+#reader{
+width:320px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+
+<h3>Market POS</h3>
+
+<button onclick="show('dashboard')">Dashboard</button>
+<button onclick="show('products')">Products</button>
+<button onclick="show('pos')">POS</button>
+<button onclick="show('scanner')">Camera Scanner</button>
+
+</div>
+
+
+<div id="content">
+
+<!-- Dashboard -->
+
+<div id="dashboard" class="section">
+
+<h2>Dashboard</h2>
+
+<p>کۆی فرۆشتن: <span id="totalSales">0</span></p>
+<p>ژمارەی کاڵا: <span id="totalProducts">0</span></p>
+
+</div>
+
+
+
+<!-- Products -->
+
+<div id="products" class="section">
+
+<h2>Products</h2>
+
+<input id="pcode" placeholder="Barcode">
+<input id="pname" placeholder="Name">
+<input id="pprice" placeholder="Price">
+
+<button onclick="addProduct()">Add Product</button>
+
+<br><br>
+
+<svg id="barcode"></svg>
+
+<table>
+
+<thead>
+<tr>
+<th>Barcode</th>
+<th>Name</th>
+<th>Price</th>
+</tr>
+</thead>
+
+<tbody id="productTable"></tbody>
+
+</table>
+
+</div>
+
+
+
+<!-- POS -->
+
+<div id="pos" class="section">
+
+<h2>POS</h2>
+
+<input id="scan" placeholder="Scan Barcode">
+
+<button onclick="scanProduct()">Add</button>
+
+<table>
+
+<thead>
+
+<tr>
+<th>Name</th>
+<th>Price</th>
+<th>Qty</th>
+<th>Total</th>
+<th>Remove</th>
+</tr>
+
+</thead>
+
+<tbody id="cartTable"></tbody>
+
+</table>
+
+<h3>Total : <span id="cartTotal">0</span></h3>
+
+<button onclick="finishSale()">Finish Sale</button>
+<button onclick="printReceipt()">Print Receipt</button>
+
+</div>
+
+
+
+<!-- Scanner -->
+
+<div id="scanner" class="section">
+
+<h2>Camera Barcode Scanner</h2>
+
+<div id="reader"></div>
+
+</div>
+
+</div>
+
+
+
+<script>
+
+let products=JSON.parse(localStorage.getItem("products"))||[]
+let sales=JSON.parse(localStorage.getItem("sales"))||0
+let cart=[]
+
+renderProducts()
+
+totalSales.innerText=sales
+totalProducts.innerText=products.length
+
+
+
+function show(id){
+
+document.querySelectorAll(".section").forEach(s=>s.style.display="none")
+
+document.getElementById(id).style.display="block"
+
+}
+
+show("dashboard")
+
+
+
+function addProduct(){
+
+let code=pcode.value
+
+let p={
+code:code,
+name:pname.value,
+price:parseFloat(pprice.value)
+}
+
+products.push(p)
+
+localStorage.setItem("products",JSON.stringify(products))
+
+JsBarcode("#barcode",code)
+
+renderProducts()
+
+}
+
+
+
+function renderProducts(){
+
+productTable.innerHTML=""
+
+products.forEach(p=>{
+
+productTable.innerHTML+=`
+
+<tr>
+<td>${p.code}</td>
+<td>${p.name}</td>
+<td>${p.price}</td>
+</tr>
+
+`
+
+})
+
+totalProducts.innerText=products.length
+
+}
+
+
+
+function scanProduct(){
+
+let code=scan.value
+
+addToCart(code)
+
+scan.value=""
+
+}
+
+
+
+function addToCart(code){
+
+let p=products.find(x=>x.code==code)
+
+if(!p)return
+
+let item=cart.find(x=>x.code==code)
+
+if(item){
+
+item.qty++
+
+}else{
+
+cart.push({
+code:p.code,
+name:p.name,
+price:p.price,
+qty:1
+})
+
+}
+
+renderCart()
+
+}
+
+
+
+function renderCart(){
+
+cartTable.innerHTML=""
+
+let total=0
+
+cart.forEach((i,index)=>{
+
+let t=i.price*i.qty
+
+total+=t
+
+cartTable.innerHTML+=`
+
+<tr>
+
+<td>${i.name}</td>
+<td>${i.price}</td>
+<td>${i.qty}</td>
+<td>${t}</td>
+
+<td>
+<button onclick="removeItem(${index})">X</button>
+</td>
+
+</tr>
+
+`
+
+})
+
+cartTotal.innerText=total
+
+}
+
+
+
+function removeItem(i){
+
+cart.splice(i,1)
+
+renderCart()
+
+}
+
+
+
+function finishSale(){
+
+sales+=parseFloat(cartTotal.innerText)
+
+localStorage.setItem("sales",sales)
+
+totalSales.innerText=sales
+
+cart=[]
+
+renderCart()
+
+alert("Sale Completed")
+
+}
+
+
+
+function printReceipt(){
+
+let w=window.open()
+
+let html="<h2>Receipt</h2>"
+
+cart.forEach(i=>{
+
+html+=i.name+" x"+i.qty+" = "+(i.qty*i.price)+"<br>"
+
+})
+
+html+="<hr>Total: "+cartTotal.innerText
+
+w.document.write(html)
+
+w.print()
+
+}
+
+
+
+function startScanner(){
+
+const scanner=new Html5Qrcode("reader")
+
+scanner.start(
+
+{ facingMode:"environment" },
+
+{ fps:10 },
+
+(code)=>{
+
+addToCart(code)
+
+}
+
+)
+
+}
+
+startScanner()
+
+</script>
+
+</body>
+</html>
